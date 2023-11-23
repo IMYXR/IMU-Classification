@@ -45,21 +45,6 @@ train_loader = DataLoader(dataset, batch_size=64, shuffle=True)
 valid_data = TensorDataset(X_eva, y_eva)
 valid_loader = DataLoader(valid_data, batch_size=91, shuffle=True)
 
-# 残差模块
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels):
-        super(ResidualBlock, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels, in_channels, kernel_size=3, padding=1)
-        self.relu = nn.ReLU()
-        self.conv2 = nn.Conv1d(in_channels, in_channels, kernel_size=3, padding=1)
-
-    def forward(self, x):
-        residual = x
-        out = self.relu(self.conv1(x))
-        out = self.conv2(out)
-        out += residual  # 将输入加到卷积层输出上
-        out = self.relu(out)
-        return out
 
 #加入注意力机制
 class Attention(nn.Module):
