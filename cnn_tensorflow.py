@@ -1,12 +1,17 @@
 import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
+from keras.optimizers import Adam
+from keras.callbacks import ReduceLROnPlateau
+from  scipy.ndimage import gaussian_filter1d
 
-# 数据加载
-AC = np.load('AC_array.npy')
-AD = np.load('AD_array.npy')
-BC = np.load('BC_array.npy')
-BD = np.load('BD_array.npy')
+
+
+# 训练数据加载
+AC = np.load('./newdata/AC_array.npy')
+AD = np.load('./newdata/AD_array.npy')
+BC = np.load('./newdata/BC_array.npy')
+BD = np.load('./newdata/BD_array.npy')
 # 为每个段分配标签
 AC_labels = [0] * len(AC)
 AD_labels = [1] * len(AD)
@@ -18,8 +23,26 @@ labels = AC_labels + AD_labels+ BC_labels + BD_labels
 X = np.array(data)
 y = np.array(labels)
 
+# 测试数据加载
+ACT = np.load('./evaluate_data/AC_eva.npy')
+ADT = np.load('./evaluate_data/AD_eva.npy')
+BCT = np.load('./evaluate_data/BC_eva.npy')
+BDT = np.load('./evaluate_data/BD_eva.npy')
 
-def bulid(X_train, y_train, batch_size=64, epochs=200):
+# 为每个段分配标签
+ACT_labels = [0] * len(ACT)
+ADT_labels = [1] * len(ADT)
+BCT_labels = [2] * len(BCT)
+BDT_labels = [3] * len(BDT)
+# 合并数据和标签
+dataT =np.vstack([ACT,ADT,BCT,BDT])
+sigma = 2
+smoothed_data = gaussian_filter1d(dataT, sigma)
+labelsT = ACT_labels + ADT_labels+ BCT_labels + BDT_labels
+XT = np.array(smoothed_data)
+yT = np.array(labelsT)
+
+def bulid(X_train, y_train,X_test,y_test, batch_size=64, epochs=300):
     """
     搭建网络结构完成训练
     :param X_train: 训练集数据
@@ -36,19 +59,31 @@ def bulid(X_train, y_train, batch_size=64, epochs=200):
         tf.keras.layers.MaxPool1D(pool_size=2, strides=2, padding='same'),
         tf.keras.layers.Conv1D(filters=64, kernel_size=5, padding='same',
                                activation=tf.keras.layers.ReLU()),
+        tf.keras.layers.MaxPool1D(pool_size=2, strides=2, padding='same'),
         tf.keras.layers.Conv1D(filters=32, kernel_size=3, padding='same',
                                activation=tf.keras.layers.ReLU()),
         tf.keras.layers.MaxPool1D(pool_size=2, strides=2, padding='same'),
+        tf.keras.layers.Conv1D(filters=32, kernel_size=3, padding='same',
+                               activation=tf.keras.layers.ReLU()),
+        tf.keras.layers.MaxPool1D(pool_size=2, strides=2, padding='same'),
+        tf.keras.layers.Conv1D(filters=32, kernel_size=3, padding='same',
+                               activation=tf.keras.layers.ReLU()),
+        tf.keras.layers.MaxPool1D(pool_size=2, strides=2, padding='same'),
+        # tf.keras.layers.Conv1D(filters=16, kernel_size=3, padding='same',
+        #                        activation=tf.keras.layers.ReLU()),
+        # tf.keras.layers.MaxPool1D(pool_size=2, strides=2, padding='same'),
+
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(units=108, activation=tf.keras.layers.ReLU()),
         tf.keras.layers.Dropout(0.5),
         tf.keras.layers.Dense(units=4, activation='softmax'),
     ])
-    model.compile(optimizer='adam',
+    model.compile(optimizer=Adam(learning_rate=0.001),
                   loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
                   metrics=['sparse_categorical_accuracy'])
-    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_train, y_train))
-    model.summary()
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.0001, patience=5)
+    history = model.fit(X_train, y_train, epochs=epochs, batch_size=batch_size, validation_data=(X_test, y_test))
+    # model.summary()
     # 获得训练集和测试集的acc和loss曲线
     acc = history.history['sparse_categorical_accuracy']
     val_acc = history.history['val_sparse_categorical_accuracy']
@@ -72,7 +107,7 @@ def bulid(X_train, y_train, batch_size=64, epochs=200):
     plt.show()
 
 if __name__ == "__main__":
-    bulid(X,y)
+    bulid(X, y, XT, yT)
 
 # 创建模型
 # model = Sequential()
