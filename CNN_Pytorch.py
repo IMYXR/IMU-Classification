@@ -45,54 +45,37 @@ train_loader = DataLoader(dataset, batch_size=64, shuffle=True)
 valid_data = TensorDataset(X_eva, y_eva)
 valid_loader = DataLoader(valid_data, batch_size=91, shuffle=True)
 
-
-#加入注意力机制
-class Attention(nn.Module):
-    def __init__(self, feature_dim, step_dim, bias=True, **kwargs):
-        super(Attention, self).__init__(**kwargs)
-
-        self.feature_dim = feature_dim
-        self.step_dim = step_dim
-        self.bias = bias
-        self.attention = nn.Linear(feature_dim, 1, bias=bias)
-
-    def forward(self, x):
-        eij = self.attention(x)
-
-        if self.bias:
-            eij = torch.tanh(eij)
-
-        a = torch.exp(eij)
-
-        a = a / torch.sum(a, 1, keepdim=True) + 1e-10
-
-        weighted_input = x * a
-        return torch.sum(weighted_input, 1)
-
-
 # 定义模型
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv1d(18, 108, 5, padding='same', )
+        self.conv1 = nn.Conv1d(18, 108, 5, padding='same')
         self.relu = nn.LeakyReLU()
+        self.bn1 = nn.BatchNorm1d(108)
         self.maxpool = nn.MaxPool1d(2, 2, padding=1)
         self.conv2 = nn.Conv1d(108, 64, 5, padding='same')
+        self.bn2 = nn.BatchNorm1d(64)
         self.conv3 = nn.Conv1d(64, 32, 3, padding='same')
-        self.attention = Attention(feature_dim=18, step_dim=5)
-        self.fc1 = nn.Linear(2432, 256)  # 修改这一层的输出特征数
+        self.bn3 = nn.BatchNorm1d(32)
+        self.conv4 = nn.Conv1d(32, 64, 3, padding='same')
+        self.bn4 = nn.BatchNorm1d(64)
+
+        # self.attention = Attention(feature_dim=18, step_dim=5)
+        self.fc1 = nn.Linear(4864, 256)  # 修改这一层的输出特征数
         self.relu1 = nn.LeakyReLU()  # 可以加入一个ReLU激活层
         self.fc2 = nn.Linear(256, 108)  # 新增一个全连接层
         self.dropout = nn.Dropout(0.5)  # Dropout 层，概率为0.5
         self.fc3 = nn.Linear(108, 4)  # 这是原来的第二个全连接层，现在变成第三个
 
     def forward(self, x):
-        x = self.relu(self.conv1(x))
+        x = self.relu(self.bn1(self.conv1(x)))
         x = self.maxpool(x)
         # x = self.dropout(x)  # 应用 Dropout
-        x = self.relu(self.conv2(x))
+        x = self.relu(self.bn2(self.conv2(x)))
         # x = self.dropout(x)  # 应用 Dropout
-        x = self.relu(self.conv3(x))
+        x = self.relu(self.bn3(self.conv3(x)))
+        x = self.relu(self.bn4(self.conv4(x)))
+        # x = self.relu(self.conv5(x))
         x = self.maxpool(x)
         x = torch.flatten(x, 1)
         # x = self.dropout(x)  # 应用 Dropout
